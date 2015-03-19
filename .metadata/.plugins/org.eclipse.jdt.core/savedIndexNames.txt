@@ -1,0 +1,2 @@
+INDEX VERSION 1.127+C:\Users\anurjai2\Desktop\ducat_demos\ducat_hadoop_demos\.metadata\.plugins\org.eclipse.jdt.core
+928396556.index
