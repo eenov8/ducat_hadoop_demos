@@ -1,0 +1,62 @@
+package com.hadoop.anurag;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+@SuppressWarnings("deprecation")
+public class WeblogMapper extends Mapper<Object, Text, Text, IntWritable> {
+
+	private Map<String, String> ipCountryMap = new HashMap<String, String>();
+	private Text outputKey = new Text();
+	private IntWritable outputValue = new IntWritable(1);
+
+	public static String getNextIPV4Address(String ip) {
+		String[] nums = ip.split("\\.");
+		int i = (Integer.parseInt(nums[0].trim()) << 24
+				| Integer.parseInt(nums[2].trim()) << 8
+				| Integer.parseInt(nums[1].trim()) << 16 | Integer
+				.parseInt(nums[3].trim())) + 1;
+
+		return String.format("%d.%d.%d.%d", i >>> 24 & 0xFF, i >> 16 & 0xFF,
+				i >> 8 & 0xFF, i >> 0 & 0xFF);
+	}
+
+	@Override
+	protected void setup(Context context) throws IOException,
+			InterruptedException {
+		String[] ips = context.getConfiguration().get("col_pos").split("@@@");
+		for (int i = 0; i < ips.length; i++) {
+			String[] tokens = ips[i].split(",");
+			String startIP = tokens[0];
+			String endIP = tokens[1];
+			String country_name = tokens[4];
+			if (country_name.equalsIgnoreCase("India")) {
+				ipCountryMap.put(startIP, country_name);
+				while (!startIP.trim().equals(endIP.trim())) {
+					startIP = getNextIPV4Address(startIP);
+					ipCountryMap.put(startIP, country_name);
+				}
+			}
+		}
+		if (ipCountryMap.isEmpty()) {
+			throw new IOException("Unable to load IP country table.");
+		}
+	}
+
+	public void map(LongWritable ikey, Text ivalue, Context context)
+			throws IOException, InterruptedException {
+		String row = ivalue.toString();
+		String[] tokens = row.split(" ");
+		String ip = tokens[0];
+		String country = ipCountryMap.get(ip);
+		outputKey.set(country);
+		context.write(outputKey, outputValue);
+	}
+
+}
